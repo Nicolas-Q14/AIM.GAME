@@ -7,34 +7,48 @@ function App() {
   const [time, setTime] = useState(30);
   const [level, setLevel] = useState(1);
   const [gameOver, setGameOver] = useState(false);
+  const [started, setStarted] = useState(false);
+  const [difficulty, setDifficulty] = useState("medium");
 
-  // Crear enemigo
+  const difficultySpeed = {
+    easy: 900,
+    medium: 600,
+    hard: 400,
+  };
+
+  // crear enemigo
   const createTarget = () => ({
     id: Math.random(),
     x: Math.random() * 90,
     y: Math.random() * 90,
   });
 
-  // Inicializar
+  // iniciar juego
   useEffect(() => {
-    setTargets([createTarget()]);
-  }, []);
+    if (started) {
+      setTargets([createTarget()]);
+    }
+  }, [started]);
 
-  // Timer
+  // tiempo
   useEffect(() => {
+    if (!started || gameOver) return;
+
     if (time <= 0) {
       setGameOver(true);
       return;
     }
-    const timer = setTimeout(() => setTime(time - 1), 1000);
+
+    const timer = setTimeout(() => setTime((t) => t - 1), 1000);
     return () => clearTimeout(timer);
-  }, [time]);
+  }, [time, started, gameOver]);
 
-  // Movimiento con velocidad dinámica
+  // movimiento enemigos
   useEffect(() => {
-    if (gameOver) return;
+    if (!started || gameOver) return;
 
-    const speed = 600 - level * 80; // más nivel = más rápido
+    const baseSpeed = difficultySpeed[difficulty];
+    const speed = baseSpeed - level * 60;
 
     const interval = setInterval(() => {
       setTargets((prev) =>
@@ -44,27 +58,24 @@ function App() {
           y: Math.random() * 90,
         }))
       );
-    }, speed > 100 ? speed : 100);
+    }, speed > 120 ? speed : 120);
 
     return () => clearInterval(interval);
-  }, [level, gameOver]);
+  }, [level, difficulty, started, gameOver]);
 
-  // Disparo
+  // disparo
   const shoot = (id) => {
     if (gameOver) return;
 
-    setScore((s) => s + 10);
+    const newScore = score + 10;
+    setScore(newScore);
 
-    // eliminar target golpeado
     setTargets((prev) => prev.filter((t) => t.id !== id));
-
-    // agregar nuevo
     setTargets((prev) => [...prev, createTarget()]);
 
-    // subir nivel cada 50 puntos
-    if ((score + 10) % 50 === 0) {
+    if (newScore % 50 === 0) {
       setLevel((l) => l + 1);
-      setTargets((prev) => [...prev, createTarget()]); // más enemigos
+      setTargets((prev) => [...prev, createTarget()]);
     }
   };
 
@@ -76,11 +87,46 @@ function App() {
     setTargets([createTarget()]);
   };
 
+  // 🎮 MENÚ
+  if (!started) {
+    return (
+      <div className="menu">
+        <h1>🎯 Shooter Pro Max</h1>
+        <h2>Selecciona dificultad</h2>
+
+        <div className="buttons">
+          <button onClick={() => setDifficulty("easy")}>Fácil</button>
+          <button onClick={() => setDifficulty("medium")}>Media</button>
+          <button onClick={() => setDifficulty("hard")}>Difícil</button>
+        </div>
+
+        <button className="start" onClick={() => setStarted(true)}>
+          Iniciar Juego
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="game-container">
+    <div
+      className="game-container"
+      onMouseMove={(e) => {
+        const cursor = document.querySelector(".crosshair");
+        if (cursor) {
+          cursor.style.left = e.clientX + "px";
+          cursor.style.top = e.clientY + "px";
+        }
+      }}
+    >
       <h1>🔥 Shooter Pro Max</h1>
 
       <div className="game-area">
+        {/* 🎯 MIRA */}
+        <div className="crosshair"></div>
+
+        {/* 🔫 ARMA */}
+        <div className="gun"></div>
+
         {!gameOver &&
           targets.map((t) => (
             <div
